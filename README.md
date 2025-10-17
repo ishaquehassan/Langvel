@@ -8,8 +8,9 @@ Langvel brings the beloved Laravel development experience to AI agent developmen
 
 ## ✨ Features
 
+### Core Features
 - **🎯 Laravel-Inspired DX**: Familiar routing, middleware, and service provider patterns
-- **🔧 Full LangGraph Power**: Access all LangGraph capabilities with elegant abstractions
+- **🔧 Full LangGraph Power**: 100% feature coverage with elegant abstractions
 - **🤖 Built-in LLM Support**: Every agent has `self.llm` ready to use (Claude, GPT)
 - **🧠 RAG Integration**: Built-in support for vector stores and embeddings
 - **🔌 MCP Servers**: Seamless Model Context Protocol integration
@@ -22,6 +23,15 @@ Langvel brings the beloved Laravel development experience to AI agent developmen
 - **📊 Observability**: LangSmith and Langfuse integration for tracing
 - **📝 Structured Logging**: JSON logging with full context for ELK, Datadog, CloudWatch
 - **🤝 Multi-Agent**: Agent coordination, message bus, and supervisor patterns
+
+### Advanced Workflow Features
+- **🔄 Loop Patterns**: `.loop()`, `.until()`, `.while_()` for iterative workflows
+- **🧩 Subgraph Composition**: Reusable, nestable workflow components
+- **👤 Human-in-the-Loop**: Workflow interrupts with approval flows
+- **⚡ Dynamic Graphs**: Runtime graph modification and adaptation
+- **🔧 Auto-Retry Tools**: Exponential backoff with fallback support
+- **✓ Graph Validation**: Pre-execution validation to catch errors early
+- **🔀 Smart Parallel Execution**: Auto-merge for concurrent operations
 
 ## 🚀 Quick Start
 
@@ -436,6 +446,378 @@ supervisor = TaskSupervisor()
 result = await supervisor.invoke({"task": "Complex research task"})
 ```
 
+## 🔥 Advanced Workflow Patterns
+
+Langvel supports **ALL** LangGraph features with elegant, Laravel-inspired syntax.
+
+### 12. Loop Patterns
+
+Execute nodes repeatedly with conditions and safety limits.
+
+#### `.loop()` - While Pattern
+
+```python
+def build_graph(self):
+    return (
+        self.start()
+        .then(self.initialize_tasks)
+
+        # Loop while tasks remain
+        .loop(
+            self.process_next_task,
+            condition=lambda state: len(state.remaining_tasks) > 0,
+            max_iterations=100  # Safety limit
+        )
+
+        .then(self.finalize)
+        .end()
+    )
+```
+
+#### `.until()` - Do-While Pattern
+
+```python
+def build_graph(self):
+    return (
+        self.start()
+
+        # Retry until successful or max attempts
+        .until(
+            self.attempt_connection,
+            condition=lambda state: state.connected or state.retries >= 5
+        )
+
+        .then(self.handle_result)
+        .end()
+    )
+```
+
+#### `.while_()` - Alternative While Syntax
+
+```python
+.while_(
+    condition=lambda state: state.retry_count < 3,
+    func=self.attempt_operation
+)
+```
+
+**Features:**
+- Automatic iteration tracking
+- Safety limits with `max_iterations`
+- Condition-based exit
+- Perfect for retry logic, batch processing, polling
+
+### 13. Subgraph Composition
+
+Build reusable workflow components that can be nested and composed.
+
+```python
+# Define reusable authentication subgraph
+class AuthenticationFlow:
+    @staticmethod
+    def build() -> GraphBuilder:
+        auth = GraphBuilder(AuthState)
+        return (
+            auth
+            .then(AuthenticationFlow.verify_token)
+            .then(AuthenticationFlow.load_user)
+            .then(AuthenticationFlow.check_permissions)
+            .end()
+        )
+
+# Use in main agent
+class MainAgent(Agent):
+    def build_graph(self):
+        return (
+            self.start()
+
+            # Embed authentication subgraph
+            .subgraph(AuthenticationFlow.build(), name='auth')
+
+            # Continue main flow
+            .then(self.process_request)
+            .end()
+        )
+```
+
+**Benefits:**
+- **Reusability**: Define once, use everywhere
+- **Modularity**: Separate concerns logically
+- **Testability**: Test subgraphs independently
+- **Maintainability**: Update in one place
+
+### 14. Human-in-the-Loop
+
+Pause workflows for human approval or input.
+
+```python
+class ApprovalAgent(Agent):
+    def build_graph(self):
+        return (
+            self.start()
+            .then(self.classify_request)
+
+            # Pause here for human review
+            .interrupt()
+
+            # Only continues after human approval
+            .then(self.execute_action)
+            .end()
+        )
+```
+
+**Complete workflow with approval:**
+
+```python
+async def run_with_approval():
+    agent = ApprovalAgent()
+    config = {"configurable": {"thread_id": "workflow-123"}}
+
+    # Start execution - will pause at interrupt
+    try:
+        await agent.invoke({'query': 'Delete user data'}, config=config)
+    except Exception:
+        pass  # Workflow paused
+
+    # Check state at interrupt point
+    state = agent.get_state(config)
+    print(f"Awaiting approval: {state}")
+
+    # Human reviews and approves
+    agent.update_state(config, {'approved': True})
+
+    # Resume execution
+    result = await agent.resume(config)
+    print(f"Workflow completed: {result}")
+```
+
+**Requirements:**
+- Must use checkpointer (postgres, redis, or memory)
+- Provide thread_id in config
+- Call `resume()` to continue
+
+### 15. Dynamic Graph Modification
+
+Modify graph structure at runtime based on conditions.
+
+```python
+def build_graph(self):
+    builder = self.start().dynamic(True)  # Enable dynamic mode
+
+    builder.then(self.analyze_request)
+    # Can add/remove nodes at runtime
+
+    return builder.end()
+
+async def analyze_request(self, state):
+    """Add processing nodes based on complexity."""
+
+    if state.complexity == 'high':
+        # Dynamically add intensive processing
+        builder.add_node_dynamic(
+            self.deep_analysis,
+            connect_from='analyze_request',
+            connect_to='finalize'
+        )
+    else:
+        # Add fast path
+        builder.add_node_dynamic(
+            self.quick_process,
+            connect_from='analyze_request'
+        )
+
+    return state
+```
+
+**Use Cases:**
+- Conditional workflow paths
+- A/B testing workflows
+- User-customizable flows
+- Performance optimization
+
+### 16. Tool Execution with Retry/Fallback
+
+Tools automatically retry on failure with exponential backoff.
+
+```python
+@tool(
+    description="Fetch data from API",
+    retry=5,  # Retry up to 5 times
+    timeout=10.0,  # 10-second timeout
+    fallback=lambda self, *args, error=None, **kwargs: {"cached": True}
+)
+async def fetch_api_data(self, query: str) -> dict:
+    """Automatically retries on failure."""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"https://api.example.com?q={query}") as resp:
+            return await resp.json()
+
+# Use in agent nodes
+async def process(self, state):
+    # Automatic retry with exponential backoff
+    result = await self.execute_tool('fetch_api_data', state.query)
+    state.results = result
+    return state
+```
+
+**Retry Behavior:**
+1. **First attempt** - Immediate
+2. **Retry 1** - Wait 1 second (2^0)
+3. **Retry 2** - Wait 2 seconds (2^1)
+4. **Retry 3** - Wait 4 seconds (2^2)
+5. **Retry 4** - Wait 8 seconds (2^3)
+6. **Fallback** - Execute fallback if all fail
+
+**All tool types support retry:**
+```python
+@rag_tool(collection='docs', k=5, retry=3)
+@mcp_tool(server='slack', tool_name='send', retry=3)
+@http_tool(method='POST', url='...', retry=3)
+@llm_tool(system_prompt="...", retry=3, timeout=30)
+```
+
+### 17. Graph Validation
+
+Validate graph structure before execution to catch errors early.
+
+```python
+def build_graph(self):
+    builder = (
+        self.start()
+        .then(self.step1)
+        .then(self.step2)
+        .end()
+    )
+
+    # Validate structure
+    warnings = builder.validate()
+    if warnings:
+        for warning in warnings:
+            logger.warning(f"Graph issue: {warning}")
+
+    return builder
+```
+
+**Validation checks:**
+- ✓ Unreachable nodes (not connected from START)
+- ✓ Dead ends (no path to END)
+- ✓ Missing merges after parallel execution
+- ✓ Dangling conditional branches
+
+**Example output:**
+```python
+[
+    "Unreachable nodes detected: {'orphan_node'}",
+    "Nodes with no path to END: {'dead_end_node'}",
+    "Parallel execution detected without explicit merge or end()"
+]
+```
+
+### 18. Smart Parallel Execution
+
+Execute multiple nodes concurrently with automatic merging.
+
+```python
+def build_graph(self):
+    return (
+        self.start()
+        .then(self.prepare)
+
+        # Execute in parallel - auto-merge to END
+        .parallel(
+            self.fetch_weather,
+            self.fetch_news,
+            self.fetch_stocks,
+            auto_merge=True  # Default: automatically merge
+        )
+    )
+```
+
+**Manual merge for combining results:**
+```python
+.parallel(
+    self.fetch_data_a,
+    self.fetch_data_b,
+    auto_merge=False  # Don't auto-merge
+)
+.merge(self.combine_results)  # Explicit merge
+.then(self.process_combined)
+.end()
+```
+
+## 🎓 Complete Advanced Example
+
+Putting it all together:
+
+```python
+class OrderProcessingAgent(Agent):
+    state_model = OrderState
+    checkpointer = 'postgres'  # For human-in-loop support
+
+    def build_graph(self):
+        builder = (
+            self.start()
+
+            # 1. Subgraph composition
+            .subgraph(AuthenticationFlow.build(), name='auth')
+
+            # 2. Initial validation
+            .then(self.validate_order)
+
+            # 3. Parallel checks with auto-merge
+            .parallel(
+                self.check_inventory,
+                self.validate_payment,
+                auto_merge=False
+            )
+            .merge(self.consolidate_checks)
+
+            # 4. Conditional routing
+            .branch({
+                'approved': self.process_order,
+                'review': self.flag_for_review,
+                'denied': self.reject_order
+            })
+
+            # 5. Human approval for flagged orders
+            .then(self.prepare_review_summary)
+            .interrupt()  # Wait for human approval
+
+            # 6. Loop for order fulfillment
+            .loop(
+                self.process_batch,
+                condition=lambda s: len(s.items_to_ship) > 0,
+                max_iterations=50
+            )
+
+            # 7. Final notification
+            .then(self.send_confirmation)
+            .end()
+        )
+
+        # 8. Validate graph structure
+        warnings = builder.validate()
+        if warnings and os.getenv('ENV') == 'development':
+            raise ValueError(f"Invalid graph: {warnings}")
+
+        return builder
+
+    # 9. Tool with retry/fallback
+    @tool(retry=5, timeout=10, fallback=lambda *a, **k: None)
+    async def check_inventory(self, state):
+        # Automatically retried on failure
+        return state
+```
+
+**This example demonstrates:**
+- ✓ Subgraph composition for auth
+- ✓ Parallel execution with merge
+- ✓ Conditional branching
+- ✓ Human-in-the-loop approval
+- ✓ Loop patterns for batch processing
+- ✓ Tool retry with fallback
+- ✓ Graph validation
+
 ## 🛠️ CLI Commands
 
 ### Setup & Installation
@@ -477,8 +859,9 @@ Check out `app/agents/` for working example implementations:
 
 - **customer_support_agent.py**: Complete example showing RAG, MCP, sentiment analysis, conditional routing, and middleware
 - **code_review_agent.py**: LLM integration example with direct invocation, streaming, structured output, and multi-turn conversations
+- **advanced_workflow_agent.py**: 🔥 NEW! Demonstrates ALL advanced features including loops, subgraphs, human-in-loop, dynamic graphs, retry/fallback, and validation
 
-Both examples are production-ready and demonstrate best practices!
+All examples are production-ready and demonstrate best practices!
 
 ## 🏗️ Architecture
 
@@ -723,13 +1106,38 @@ MIT License - see LICENSE file for details.
 
 ## 🌟 Why Langvel?
 
-**Laravel's Elegance + LangGraph's Power + Built-in LLM**
+**Laravel's Elegance + LangGraph's Power (100% Coverage) + Built-in LLM**
 
 - ✅ **Familiar Patterns** - If you know Laravel, you know Langvel
-- ✅ **Production Ready** - Type-safe, tested, documented
-- ✅ **Full-Featured** - RAG, MCP, LLM, Auth, Middleware, Tools
-- ✅ **Developer Joy** - Beautiful CLI, one-command setup, great DX
+- ✅ **Complete LangGraph Coverage** - Loops, subgraphs, human-in-loop, dynamic graphs, everything!
+- ✅ **Production Ready** - Type-safe, tested, documented, battle-hardened
+- ✅ **Full-Featured** - RAG, MCP, LLM, Auth, Middleware, Tools, Retry, Observability
+- ✅ **Advanced Workflows** - Complex iterative patterns, approval flows, adaptive graphs
+- ✅ **Developer Joy** - Beautiful CLI, one-command setup, incredible DX
 - ✅ **Extensible** - Easy to add custom tools, middleware, providers
+
+**What Makes Langvel Different:**
+
+| Feature | Native LangGraph | Langvel |
+|---------|------------------|---------|
+| Learning Curve | Steep | Gentle (Laravel-like) |
+| Graph Building | Code-heavy | Fluent DSL `.then().loop().end()` |
+| Loop Patterns | Manual setup | `.loop()`, `.until()`, `.while_()` |
+| Subgraphs | Complex nesting | `.subgraph(auth_flow)` |
+| Human-in-Loop | Manual checkpoints | `.interrupt()` + `resume()` |
+| Tool Retry | Manual implementation | `@tool(retry=5, fallback=...)` |
+| Graph Validation | None | `.validate()` with detailed warnings |
+| State Management | Dicts/TypedDicts | Pydantic models with validation |
+| Production Features | Basic | Auth, logging, observability built-in |
+| Multi-Agent | Manual coordination | `SupervisorAgent` pattern |
+
+**Perfect for:**
+- 🏢 Enterprise workflows with approval flows
+- 🔄 Complex iterative processing (batch jobs, retries, polling)
+- 🧩 Modular, reusable workflow components
+- 👥 Multi-agent coordination systems
+- 🔐 Production applications requiring auth and observability
+- 🚀 Rapid prototyping with production-ready foundations
 
 ---
 

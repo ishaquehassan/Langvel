@@ -90,7 +90,7 @@ class Agent(ABC):
 
     def compile(self) -> StateGraph:
         """
-        Compile the agent into a LangGraph StateGraph.
+        Compile the agent into a LangGraph StateGraph with interrupt support.
 
         Returns:
             StateGraph: The compiled graph ready for execution
@@ -105,8 +105,14 @@ class Agent(ABC):
         # Set up checkpointer
         checkpointer = self._get_checkpointer()
 
-        # Compile with checkpointer
-        self._compiled_graph = graph.compile(checkpointer=checkpointer)
+        # Compile with checkpointer and interrupt support
+        compile_kwargs = {'checkpointer': checkpointer}
+
+        # Add interrupt configuration if defined
+        if hasattr(graph, '_interrupt_before') and graph._interrupt_before:
+            compile_kwargs['interrupt_before'] = graph._interrupt_before
+
+        self._compiled_graph = graph.compile(**compile_kwargs)
         return self._compiled_graph
 
     def _get_checkpointer(self):
@@ -180,6 +186,135 @@ class Agent(ABC):
         graph = self.compile()
         async for chunk in graph.astream(input_data, config):
             yield chunk
+
+    async def resume(
+        self,
+        config: RunnableConfig,
+        input_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Resume an interrupted agent execution.
+
+        Args:
+            config: Configuration with thread_id of the interrupted run
+            input_data: Optional updated input data to merge with checkpoint
+
+        Returns:
+            The final state after resuming execution
+
+        Example:
+            # Agent execution interrupted at node
+            config = {"configurable": {"thread_id": "thread-123"}}
+            result = await agent.resume(config)
+        """
+        graph = self.compile()
+
+        # If input_data provided, merge with checkpoint
+        if input_data:
+            result = await graph.ainvoke(input_data, config)
+        else:
+            # Resume from checkpoint with None to continue
+            result = await graph.ainvoke(None, config)
+
+        return result
+
+    def get_state(self, config: RunnableConfig) -> Optional[Dict[str, Any]]:
+        """
+        Get the current state of an agent execution.
+
+        Args:
+            config: Configuration with thread_id
+
+        Returns:
+            Current state dict or None if not found
+
+        Example:
+            config = {"configurable": {"thread_id": "thread-123"}}
+            state = agent.get_state(config)
+        """
+        graph = self.compile()
+        try:
+            snapshot = graph.get_state(config)
+            return snapshot.values if snapshot else None
+        except Exception:
+            return None
+
+    def update_state(
+        self,
+        config: RunnableConfig,
+        values: Dict[str, Any],
+        as_node: Optional[str] = None
+    ) -> None:
+        """
+        Update the state of an interrupted execution.
+
+        Args:
+            config: Configuration with thread_id
+            values: State values to update
+            as_node: Optional node name to update as
+
+        Example:
+            # Update interrupted state
+            config = {"configurable": {"thread_id": "thread-123"}}
+            agent.update_state(config, {"approved": True})
+            result = await agent.resume(config)
+        """
+        graph = self.compile()
+        graph.update_state(config, values, as_node=as_node)
+
+    async def execute_tool(
+        self,
+        tool_name: str,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Execute a registered tool with automatic retry, timeout, and fallback.
+
+        This method integrates with the ToolRegistry to execute tools decorated with
+        @tool, @rag_tool, @mcp_tool, @http_tool, or @llm_tool decorators.
+
+        Args:
+            tool_name: Name of the tool to execute
+            *args: Positional arguments for the tool
+            **kwargs: Keyword arguments for the tool
+
+        Returns:
+            Tool execution result
+
+        Raises:
+            ToolExecutionError: If tool execution fails
+
+        Example:
+            # In your agent node
+            async def process(self, state):
+                # Tool will automatically retry 3 times with exponential backoff
+                result = await self.execute_tool('analyze_sentiment', state)
+                return state
+        """
+        tool = self.tool_registry.get(tool_name)
+        if not tool:
+            from langvel.tools.registry import ToolExecutionError
+            raise ToolExecutionError(f"Tool '{tool_name}' not found")
+
+        # Get tool metadata for retry/timeout/fallback
+        metadata = self.tool_registry.get_metadata(tool_name)
+
+        # Extract decorator settings
+        retry = getattr(tool, '_tool_retry', 3)
+        timeout = getattr(tool, '_tool_timeout', None)
+        fallback_func = getattr(tool, '_tool_fallback', None)
+
+        # Execute using ToolRegistry
+        return await self.tool_registry.execute_tool(
+            name=tool_name,
+            agent=self,
+            *args,
+            retry=retry,
+            timeout=timeout,
+            fallback=fallback_func,
+            **kwargs
+        )
 
     def start(self) -> "GraphBuilder":
         """Start building the graph."""
