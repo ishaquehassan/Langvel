@@ -10,6 +10,7 @@ import json
 import logging
 import uuid
 import re
+import asyncio
 from threading import Lock
 
 from config.langvel import config
@@ -320,17 +321,38 @@ async def invoke_agent(agent_path: str, request: AgentRequest):
 
             return StreamingResponse(generate(), media_type="text/event-stream")
 
-        # Handle normal invocation
-        result = await agent.invoke(request.input, request.config)
+        # Handle normal invocation with timeout
+        try:
+            result = await asyncio.wait_for(
+                agent.invoke(request.input, request.config),
+                timeout=config.AGENT_TIMEOUT
+            )
 
-        return AgentResponse(
-            output=result,
-            metadata={
-                "agent": agent.__class__.__name__,
-                "path": f"/{agent_path}"
-            }
-        )
+            return AgentResponse(
+                output=result,
+                metadata={
+                    "agent": agent.__class__.__name__,
+                    "path": f"/{agent_path}"
+                }
+            )
 
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Agent execution timeout after {config.AGENT_TIMEOUT}s",
+                extra={
+                    "agent_path": agent_path,
+                    "agent_class": agent.__class__.__name__,
+                    "timeout": config.AGENT_TIMEOUT
+                }
+            )
+            raise HTTPException(
+                status_code=504,
+                detail=f"Agent execution timeout after {config.AGENT_TIMEOUT} seconds"
+            )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (timeout, validation errors, etc.)
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

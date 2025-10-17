@@ -59,6 +59,7 @@ class Config:
     SERVER_HOST: str = os.getenv('SERVER_HOST', '0.0.0.0')
     SERVER_PORT: int = int(os.getenv('SERVER_PORT', '8000'))
     SERVER_WORKERS: int = int(os.getenv('SERVER_WORKERS', '1'))
+    AGENT_TIMEOUT: int = int(os.getenv('AGENT_TIMEOUT', '300'))  # 5 minutes default
 
     # Middleware Configuration
     DEFAULT_MIDDLEWARE: list = ['logging']  # Applied to all agents by default
