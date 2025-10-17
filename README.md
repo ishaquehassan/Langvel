@@ -703,11 +703,11 @@ MIT License - see LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
-- **Laravel**: For the amazing DX that inspired this framework
-- **LangGraph**: For the powerful agent orchestration capabilities
-- **LangChain**: For the comprehensive LLM tooling
-- **Anthropic**: For Claude AI models
-- **OpenAI**: For GPT models
+- **[Laravel](https://laravel.com/)**: For the amazing DX that inspired this framework
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)**: For the powerful agent orchestration capabilities
+- **[LangChain](https://www.langchain.com/)**: For the comprehensive LLM tooling
+- **[Anthropic](https://www.anthropic.com/)**: For Claude AI models
+- **[OpenAI](https://openai.com/)**: For GPT models
 
 ## 🔗 Links
 
