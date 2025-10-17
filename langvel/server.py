@@ -6,8 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import json
+import logging
+import uuid
 
 from config.langvel import config
+
+# Setup logging
+logger = logging.getLogger("langvel.server")
 
 # Create FastAPI app
 app = FastAPI(
@@ -148,14 +153,49 @@ async def get_agent_graph(agent_path: str):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler."""
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": str(exc),
-            "type": type(exc).__name__
+    """
+    Global exception handler with safe error reporting.
+
+    Logs full error details internally but returns sanitized errors to clients.
+    """
+    # Generate trace ID for error tracking
+    trace_id = str(uuid.uuid4())
+
+    # Log full error details internally
+    logger.error(
+        f"Request failed: {request.method} {request.url.path}",
+        exc_info=exc,
+        extra={
+            "trace_id": trace_id,
+            "method": request.method,
+            "path": request.url.path,
+            "client": request.client.host if request.client else None,
+            "error_type": type(exc).__name__,
         }
     )
+
+    # Return safe error to client based on environment
+    if config.DEBUG:
+        # In debug mode, show detailed errors
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(exc),
+                "type": type(exc).__name__,
+                "trace_id": trace_id,
+                "message": "An error occurred. Check logs for details."
+            }
+        )
+    else:
+        # In production, return generic error
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "trace_id": trace_id,
+                "message": "An unexpected error occurred. Please contact support with this trace ID."
+            }
+        )
 
 
 if __name__ == "__main__":
