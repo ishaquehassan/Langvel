@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 import json
 import logging
@@ -13,6 +14,77 @@ from config.langvel import config
 
 # Setup logging
 logger = logging.getLogger("langvel.server")
+
+
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to limit request body size.
+
+    Prevents DoS attacks via large payloads (payload bomb attacks).
+    """
+
+    def __init__(self, app, max_size: int = 10_000_000):  # 10MB default
+        """
+        Initialize middleware.
+
+        Args:
+            app: FastAPI application
+            max_size: Maximum request body size in bytes (default: 10MB)
+        """
+        super().__init__(app)
+        self.max_size = max_size
+
+    async def dispatch(self, request: Request, call_next):
+        """
+        Check request size before processing.
+
+        Args:
+            request: Incoming request
+            call_next: Next middleware/handler
+
+        Returns:
+            Response from next handler
+
+        Raises:
+            HTTPException: If request body exceeds size limit
+        """
+        if request.method in ["POST", "PUT", "PATCH"]:
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    size = int(content_length)
+                    if size > self.max_size:
+                        logger.warning(
+                            f"Request rejected: size {size} bytes exceeds limit {self.max_size} bytes",
+                            extra={
+                                "method": request.method,
+                                "path": request.url.path,
+                                "client": request.client.host if request.client else None,
+                                "content_length": size,
+                                "max_size": self.max_size
+                            }
+                        )
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"Request body too large. Maximum size: {self.max_size} bytes"
+                        )
+                except ValueError:
+                    # Invalid content-length header
+                    logger.warning(
+                        f"Invalid Content-Length header: {content_length}",
+                        extra={
+                            "method": request.method,
+                            "path": request.url.path,
+                            "client": request.client.host if request.client else None,
+                        }
+                    )
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid Content-Length header"
+                    )
+
+        return await call_next(request)
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +101,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request size limit middleware (10MB default)
+app.add_middleware(RequestSizeLimitMiddleware, max_size=10_000_000)
 
 
 class AgentRequest(BaseModel):
@@ -157,7 +232,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     Global exception handler with safe error reporting.
 
     Logs full error details internally but returns sanitized errors to clients.
+
+    Note: HTTPException is handled separately by FastAPI, so we skip it here.
     """
+    # Skip HTTPException - let FastAPI's built-in handler deal with it
+    if isinstance(exc, HTTPException):
+        raise exc
+
     # Generate trace ID for error tracking
     trace_id = str(uuid.uuid4())
 
