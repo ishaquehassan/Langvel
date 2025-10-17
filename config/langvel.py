@@ -64,6 +64,7 @@ class Config:
     DEFAULT_MIDDLEWARE: list = ['logging']  # Applied to all agents by default
 
     # Security
+    JWT_SECRET_KEY: str = os.getenv('JWT_SECRET_KEY', '')  # Required for production
     CORS_ORIGINS: list = os.getenv('CORS_ORIGINS', '*').split(',')
     RATE_LIMIT_REQUESTS: int = int(os.getenv('RATE_LIMIT_REQUESTS', '10'))
     RATE_LIMIT_WINDOW: int = int(os.getenv('RATE_LIMIT_WINDOW', '60'))

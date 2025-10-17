@@ -44,9 +44,23 @@ class AuthManager:
         self._sessions: Dict[str, Dict[str, Any]] = {}
 
     def _get_secret_key(self) -> str:
-        """Get secret key from environment."""
+        """
+        Get secret key from environment.
+
+        Raises:
+            RuntimeError: If JWT_SECRET_KEY is not set in environment
+        """
         import os
-        return os.getenv('JWT_SECRET_KEY') or secrets.token_urlsafe(32)
+        secret = os.getenv('JWT_SECRET_KEY')
+
+        if not secret:
+            raise RuntimeError(
+                "JWT_SECRET_KEY environment variable is required for secure token signing.\n"
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'\n"
+                "Then set it in your .env file: JWT_SECRET_KEY=<your-generated-key>"
+            )
+
+        return secret
 
     # JWT Token Methods
 
