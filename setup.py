@@ -105,12 +105,13 @@ def initialize_project():
     """Initialize project structure."""
     print("🏗️  Initializing project structure...")
 
-    # Create directories
+    # Create directories (Laravel structure)
     dirs = [
         'app/agents',
         'app/middleware',
         'app/tools',
         'app/models',
+        'app/providers',
         'storage/logs',
         'storage/checkpoints',
     ]
@@ -119,7 +120,7 @@ def initialize_project():
         Path(dir_path).mkdir(parents=True, exist_ok=True)
 
     # Create __init__ files
-    for dir_path in ['app', 'app/agents', 'app/middleware', 'app/tools', 'app/models']:
+    for dir_path in ['app', 'app/agents', 'app/middleware', 'app/tools', 'app/models', 'app/providers']:
         init_file = Path(dir_path) / '__init__.py'
         init_file.touch(exist_ok=True)
 

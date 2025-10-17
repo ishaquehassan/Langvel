@@ -98,6 +98,7 @@ class {name}(Agent):
     console.print("\n[yellow]Next steps:[/yellow]")
     console.print("  1. Register the agent in routes/agent.py")
     console.print(f"  2. Implement the build_graph() method in {agent_path}")
+    console.print("  3. Check app/agents/customer_support_agent.py for a complete example")
 
 
 @make.command()
@@ -450,12 +451,13 @@ def setup(with_venv: bool):
     # Step 5: Initialize project structure
     console.print("\n[cyan]Initializing project structure...[/cyan]")
 
-    # Create directory structure
+    # Create directory structure (like Laravel)
     dirs = [
         'app/agents',
         'app/middleware',
         'app/tools',
         'app/models',
+        'app/providers',
         'config',
         'routes',
         'storage/logs',
@@ -589,12 +591,13 @@ def init():
     """Initialize a new Langvel project (without venv setup)."""
     console.print("[green]Initializing Langvel project...[/green]")
 
-    # Create directory structure
+    # Create directory structure (like Laravel)
     dirs = [
         'app/agents',
         'app/middleware',
         'app/tools',
         'app/models',
+        'app/providers',
         'config',
         'routes',
         'storage/logs',

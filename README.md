@@ -339,13 +339,11 @@ langvel agent test /my-agent -i '{"query":"test"}'  # Test agent
 langvel agent graph /my-agent -o graph.png          # Visualize graph
 ```
 
-## 📖 Examples
+## 📖 Example Agents
 
-Check out the `examples/` directory for complete examples:
+Check out `app/agents/` for working example implementations:
 
-- **Customer Support Agent**: RAG, MCP, sentiment analysis, routing
-- **Code Review Agent**: LLM tools, GitHub integration
-- **Data Analysis Agent**: HTTP tools, streaming responses
+- **customer_support_agent.py**: Complete example showing RAG, MCP, sentiment analysis, conditional routing, and middleware
 
 ## 🏗️ Architecture
 
@@ -362,15 +360,15 @@ langvel/
 ├── cli/              # CLI commands
 └── server.py         # FastAPI server
 
-app/                  # Your application
-├── agents/           # Your agents
+app/                  # Your application (like Laravel's app/)
+├── agents/           # Agent classes (like Controllers)
 ├── middleware/       # Custom middleware
 ├── tools/            # Custom tools
-└── models/           # State models
+├── models/           # State models (like Eloquent models)
+└── providers/        # Service providers
 
-config/               # Configuration
+config/               # Configuration files
 routes/               # Route definitions
-examples/             # Example agents
 ```
 
 ## 🔧 Configuration
@@ -443,7 +441,7 @@ MIT License - see LICENSE file for details.
 ## 🔗 Links
 
 - [Documentation](https://langvel.dev)
-- [Examples](./examples)
+- [Example Agents](./app/agents)
 - [GitHub](https://github.com/yourusername/langvel)
 - [Discord](https://discord.gg/langvel)
 

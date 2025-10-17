@@ -296,7 +296,7 @@ pip install -e .
 
 - **Full Documentation**: [README.md](./README.md)
 - **Detailed Install Guide**: [INSTALL.md](./INSTALL.md)
-- **Examples**: [examples/](./examples/)
+- **Example Agents**: [app/agents/](./app/agents/)
 - **Architecture**: See README.md#architecture
 
 ## 💡 Pro Tips
@@ -305,7 +305,7 @@ pip install -e .
 2. **Test agents before deploying**: `langvel agent test /path`
 3. **Visualize graphs**: `langvel agent graph /path -o graph.png`
 4. **Use middleware for cross-cutting concerns**
-5. **Check examples/ for real-world patterns**
+5. **Check app/agents/ for real-world examples**
 6. **Keep .env secure** (never commit it!)
 7. **Use state models for type safety**
 
