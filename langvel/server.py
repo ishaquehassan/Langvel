@@ -9,11 +9,89 @@ from pydantic import BaseModel
 import json
 import logging
 import uuid
+import re
 
 from config.langvel import config
 
 # Setup logging
 logger = logging.getLogger("langvel.server")
+
+# Agent path validation pattern - only allow safe characters
+# Allows: letters, numbers, underscores, hyphens, forward slashes
+# Prevents: path traversal (..), absolute paths, special characters
+AGENT_PATH_PATTERN = re.compile(r'^[a-zA-Z0-9_/-]+$')
+
+
+def validate_agent_path(agent_path: str) -> None:
+    """
+    Validate agent path to prevent path traversal attacks.
+
+    Args:
+        agent_path: Agent route path to validate
+
+    Raises:
+        HTTPException: If path is invalid or contains path traversal attempts
+
+    Security checks:
+    - No path traversal sequences (..)
+    - No absolute paths (starting with /)
+    - Only alphanumeric, underscore, hyphen, and forward slash allowed
+    - No consecutive slashes
+    """
+    # Check for empty path
+    if not agent_path or agent_path.strip() == "":
+        logger.warning(
+            "Agent path validation failed: empty path",
+            extra={"agent_path": agent_path}
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Agent path cannot be empty"
+        )
+
+    # Check for path traversal
+    if '..' in agent_path:
+        logger.warning(
+            f"Agent path validation failed: path traversal attempt detected",
+            extra={"agent_path": agent_path, "reason": "contains .."}
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid agent path: path traversal not allowed"
+        )
+
+    # Check for absolute paths (should be relative)
+    if agent_path.startswith('/'):
+        logger.warning(
+            f"Agent path validation failed: absolute path",
+            extra={"agent_path": agent_path, "reason": "starts with /"}
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid agent path: must be relative path"
+        )
+
+    # Check for consecutive slashes
+    if '//' in agent_path:
+        logger.warning(
+            f"Agent path validation failed: consecutive slashes",
+            extra={"agent_path": agent_path, "reason": "contains //"}
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid agent path: consecutive slashes not allowed"
+        )
+
+    # Check against pattern (only safe characters)
+    if not AGENT_PATH_PATTERN.match(agent_path):
+        logger.warning(
+            f"Agent path validation failed: invalid characters",
+            extra={"agent_path": agent_path, "reason": "contains invalid characters"}
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid agent path: only letters, numbers, underscores, hyphens, and slashes allowed"
+        )
 
 
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
@@ -158,6 +236,9 @@ async def invoke_agent(agent_path: str, request: AgentRequest):
     Returns:
         Agent response
     """
+    # Validate agent path for security
+    validate_agent_path(agent_path)
+
     try:
         from routes.agent import router
 
@@ -204,6 +285,9 @@ async def get_agent_graph(agent_path: str):
     Returns:
         Graph in mermaid format
     """
+    # Validate agent path for security
+    validate_agent_path(agent_path)
+
     try:
         from routes.agent import router
 
