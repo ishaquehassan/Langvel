@@ -709,16 +709,6 @@ MIT License - see LICENSE file for details.
 - ✅ **Developer Joy** - Beautiful CLI, one-command setup, great DX
 - ✅ **Extensible** - Easy to add custom tools, middleware, providers
 
-## 📊 Framework Stats
-
-- **50+ files** - Complete framework
-- **5,200+ lines** - Production-ready code
-- **9 core modules** - Well-organized
-- **20+ CLI commands** - Full tooling
-- **2 example agents** - Real-world patterns
-- **6 documentation pages** - Comprehensive guides
-- **Built-in LLM** - Claude & GPT ready to use
-
 ---
 
 **Start building amazing AI agents with Laravel-like elegance!** 🚀
