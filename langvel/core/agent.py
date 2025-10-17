@@ -132,17 +132,37 @@ class Agent(ABC):
         Returns:
             The final state after execution
         """
-        # Apply before middleware
-        input_data = await self.middleware_manager.run_before(input_data)
+        from langvel.observability.tracer import get_observability_manager
 
-        # Compile and run the graph
-        graph = self.compile()
-        result = await graph.ainvoke(input_data, config)
+        observability = get_observability_manager()
 
-        # Apply after middleware
-        result = await self.middleware_manager.run_after(result)
+        # Start trace
+        trace_id = observability.start_trace(
+            name=self.__class__.__name__,
+            input_data=input_data,
+            metadata={'agent_class': self.__class__.__name__}
+        )
 
-        return result
+        try:
+            # Apply before middleware
+            input_data = await self.middleware_manager.run_before(input_data)
+
+            # Compile and run the graph
+            graph = self.compile()
+            result = await graph.ainvoke(input_data, config)
+
+            # Apply after middleware
+            result = await self.middleware_manager.run_after(result)
+
+            # End trace with success
+            observability.end_trace(trace_id, result)
+
+            return result
+
+        except Exception as e:
+            # End trace with error
+            observability.end_trace(trace_id, {}, error=e)
+            raise
 
     async def stream(self, input_data: Dict[str, Any], config: Optional[RunnableConfig] = None):
         """
