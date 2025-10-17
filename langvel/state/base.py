@@ -54,10 +54,10 @@ class StateModel(BaseModel):
         description="Error message if any"
     )
 
-    class Config:
-        """Configuration for state management."""
-        checkpointer: str = "memory"  # memory, postgres, redis
-        interrupts: List[str] = []  # Nodes to interrupt before/after
+    # Langvel-specific configuration (not Pydantic Config)
+    # These are used by the framework for checkpointing and interrupts
+    _checkpointer: str = "memory"  # memory, postgres, redis
+    _interrupts: List[str] = []  # Nodes to interrupt before/after
 
     def update(self, **kwargs) -> "StateModel":
         """
