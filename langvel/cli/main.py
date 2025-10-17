@@ -821,6 +821,153 @@ STATE_CHECKPOINTER=memory
     console.print("  4. Start the server: [cyan]langvel agent serve[/cyan]")
 
 
+@cli.group()
+def memory():
+    """Memory system management commands."""
+    pass
+
+
+@memory.command(name='clear')
+@click.argument('user_id')
+@click.option('--session', '-s', help='Session ID to clear (clears episodic memory)')
+@click.option('--semantic', is_flag=True, help='Clear semantic memory')
+@click.option('--episodic', is_flag=True, help='Clear episodic memory')
+@click.option('--working', is_flag=True, help='Clear working memory')
+@click.option('--all', 'clear_all', is_flag=True, help='Clear all memory types')
+def clear_memory(user_id: str, session: str, semantic: bool, episodic: bool, working: bool, clear_all: bool):
+    """Clear memory for a user or session."""
+    import asyncio
+    import sys
+    sys.path.insert(0, str(Path.cwd()))
+
+    console.print(f"[yellow]Clearing memory...[/yellow]")
+
+    async def clear():
+        from langvel.memory.manager import MemoryManager
+
+        manager = MemoryManager()
+        await manager.initialize()
+
+        if clear_all:
+            semantic = episodic = working = True
+
+        await manager.clear(
+            user_id=user_id if semantic else None,
+            session_id=session if episodic else None,
+            clear_semantic=semantic or clear_all,
+            clear_episodic=episodic or clear_all,
+            clear_working=working or clear_all
+        )
+
+        console.print("[green]✓[/green] Memory cleared successfully")
+
+    try:
+        asyncio.run(clear())
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+
+
+@memory.command(name='stats')
+@click.argument('user_id')
+@click.option('--session', '-s', help='Session ID for statistics')
+def memory_stats(user_id: str, session: str):
+    """Show memory statistics for a user."""
+    import asyncio
+    import sys
+    import json
+    sys.path.insert(0, str(Path.cwd()))
+
+    console.print(f"[cyan]Fetching memory stats...[/cyan]\n")
+
+    async def get_stats():
+        from langvel.memory.manager import MemoryManager
+
+        manager = MemoryManager()
+        await manager.initialize()
+
+        stats = await manager.get_stats(user_id, session)
+
+        console.print(f"[bold]Memory Statistics for {user_id}[/bold]\n")
+
+        if 'semantic' in stats:
+            console.print(f"[green]Semantic Memory:[/green]")
+            console.print(f"  - Facts: {stats['semantic'].get('fact_count', 0)}")
+
+        if 'episodic' in stats:
+            console.print(f"\n[green]Episodic Memory:[/green]")
+            console.print(f"  - Turns: {stats['episodic'].get('turn_count', 0)}")
+
+        if 'working' in stats:
+            console.print(f"\n[green]Working Memory:[/green]")
+            console.print(f"  - Items: {stats['working'].get('item_count', 0)}")
+            console.print(f"  - Tokens: {stats['working'].get('estimated_tokens', 0)}")
+            console.print(f"  - Usage: {stats['working'].get('usage_percent', 0):.1f}%")
+
+    try:
+        asyncio.run(get_stats())
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+
+
+@memory.command(name='list')
+@click.argument('user_id')
+@click.option('--type', '-t', type=click.Choice(['facts', 'entities', 'sessions']), default='facts')
+@click.option('--limit', '-l', default=10, help='Maximum items to list')
+def list_memory(user_id: str, type: str, limit: int):
+    """List memory items for a user."""
+    import asyncio
+    import sys
+    sys.path.insert(0, str(Path.cwd()))
+
+    console.print(f"[cyan]Listing {type} for {user_id}...[/cyan]\n")
+
+    async def list_items():
+        from langvel.memory.manager import MemoryManager
+
+        manager = MemoryManager()
+        await manager.initialize()
+
+        if type == 'facts':
+            facts = await manager.semantic.recall_facts(user_id, limit=limit)
+
+            if facts:
+                table = Table(title=f"Facts for {user_id}")
+                table.add_column("ID", style="cyan")
+                table.add_column("Fact", style="green")
+                table.add_column("Created", style="yellow")
+
+                for fact in facts:
+                    fact_id = str(fact.get('id', '-'))
+                    content = fact.get('content') or fact.get('fact', '')
+                    if len(content) > 80:
+                        content = content[:80] + "..."
+                    created = fact.get('created_at', '-')
+                    table.add_row(fact_id, content, created)
+
+                console.print(table)
+            else:
+                console.print("[yellow]No facts found[/yellow]")
+
+        elif type == 'sessions':
+            sessions = await manager.episodic.list_sessions()
+
+            if sessions:
+                table = Table(title="Active Sessions")
+                table.add_column("Session ID", style="cyan")
+
+                for session_id in sessions:
+                    table.add_row(session_id)
+
+                console.print(table)
+            else:
+                console.print("[yellow]No active sessions[/yellow]")
+
+    try:
+        asyncio.run(list_items())
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {str(e)}")
+
+
 @cli.command()
 def init():
     """Initialize a new Langvel project (without venv setup)."""

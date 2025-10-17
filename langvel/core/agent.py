@@ -11,6 +11,7 @@ from langvel.tools.registry import ToolRegistry
 from langvel.middleware.manager import MiddlewareManager
 from langvel.rag.manager import RAGManager
 from langvel.mcp.manager import MCPManager
+from langvel.memory.manager import MemoryManager
 
 
 class Agent(ABC):
@@ -36,17 +37,23 @@ class Agent(ABC):
     state_model: Type[StateModel] = None
     middleware: List[str] = []
     checkpointer: Optional[str] = "memory"  # memory, postgres, redis
+    enable_memory: bool = False  # Enable memory systems
 
     def __init__(self):
         self.tool_registry = ToolRegistry()
         self.middleware_manager = MiddlewareManager()
         self.rag_manager = RAGManager()
         self.mcp_manager = MCPManager()
+        self.memory_manager = None  # Lazy initialization
         self._graph = None
         self._compiled_graph = None
 
         # Initialize LLM
         self._init_llm()
+
+        # Initialize memory if enabled
+        if self.enable_memory:
+            self._init_memory()
 
         # Register tools and middleware
         self._register_tools()
@@ -61,6 +68,25 @@ class Agent(ABC):
             provider=config.LLM_PROVIDER,
             model=config.LLM_MODEL,
             temperature=config.LLM_TEMPERATURE
+        )
+
+    def _init_memory(self):
+        """Initialize memory systems."""
+        from langvel.memory.manager import MemoryManager
+        from langvel.memory.semantic import SemanticMemory
+        from langvel.memory.episodic import EpisodicMemory
+        from langvel.memory.working import WorkingMemory
+
+        # Create memory instances with configured backends
+        semantic = SemanticMemory(backend='postgres')
+        episodic = EpisodicMemory(backend='redis')
+        working = WorkingMemory(max_tokens=4000)
+
+        # Create unified manager
+        self.memory_manager = MemoryManager(
+            semantic=semantic,
+            episodic=episodic,
+            working=working
         )
 
     def _register_tools(self):

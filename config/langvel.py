@@ -83,6 +83,13 @@ class Config:
     LANGFUSE_SECRET_KEY: str = os.getenv('LANGFUSE_SECRET_KEY', '')
     LANGFUSE_HOST: str = os.getenv('LANGFUSE_HOST', 'https://cloud.langfuse.com')
 
+    # Memory Configuration
+    MEMORY_SEMANTIC_BACKEND: str = os.getenv('MEMORY_SEMANTIC_BACKEND', 'postgres')  # postgres, memory
+    MEMORY_EPISODIC_BACKEND: str = os.getenv('MEMORY_EPISODIC_BACKEND', 'redis')  # redis, memory
+    MEMORY_EPISODIC_TTL: int = int(os.getenv('MEMORY_EPISODIC_TTL', '86400'))  # 24 hours
+    MEMORY_WORKING_MAX_TOKENS: int = int(os.getenv('MEMORY_WORKING_MAX_TOKENS', '4000'))
+    MEMORY_AUTO_DETECT_FACTS: bool = os.getenv('MEMORY_AUTO_DETECT_FACTS', 'True').lower() == 'true'
+
     # Development
     DEBUG: bool = os.getenv('DEBUG', 'False').lower() == 'true'
     RELOAD: bool = os.getenv('RELOAD', 'False').lower() == 'true'
