@@ -4,6 +4,8 @@
 
 Langvel brings the beloved Laravel development experience to AI agent development, making it easy to build powerful, production-ready agents using LangGraph under the hood.
 
+📚 **[Read the Documentation →](https://ishaquehassan.github.io/langvel-docs/)**
+
 ## ✨ Features
 
 - **🎯 Laravel-Inspired DX**: Familiar routing, middleware, and service provider patterns
@@ -711,13 +713,13 @@ MIT License - see LICENSE file for details.
 
 ## 🔗 Links
 
-- [Documentation](https://langvel.dev)
-- [Example Agents](./app/agents)
-- [GitHub](https://github.com/yourusername/langvel)
-- [Discord](https://discord.gg/langvel)
-- [Installation Guide](./INSTALL.md)
-- [Quick Start](./QUICKSTART.md)
-- [LLM Guide](./docs/LLM_GUIDE.md)
+- **[📚 Documentation](https://ishaquehassan.github.io/langvel-docs/)** - Complete documentation with guides and tutorials
+- [Example Agents](./app/agents) - Working production-ready examples
+- [GitHub](https://github.com/ishaquehassan/langvel) - Source code and issues
+- [Discord](https://discord.gg/langvel) - Community support
+- [Installation Guide](./INSTALL.md) - Detailed installation instructions
+- [Quick Start](./QUICKSTART.md) - 5-minute getting started guide
+- [LLM Guide](./docs/LLM_GUIDE.md) - Comprehensive LLM integration guide
 
 ## 🌟 Why Langvel?
 
