@@ -11,12 +11,14 @@ Langvel brings the beloved Laravel development experience to AI agent developmen
 - **🤖 Built-in LLM Support**: Every agent has `self.llm` ready to use (Claude, GPT)
 - **🧠 RAG Integration**: Built-in support for vector stores and embeddings
 - **🔌 MCP Servers**: Seamless Model Context Protocol integration
-- **🛠️ Tool System**: Decorators for custom, RAG, MCP, HTTP, and LLM tools
-- **🔐 Authentication & Authorization**: Built-in auth states and permission decorators
+- **🛠️ Tool System**: Full execution engine with retry, fallback, and timeout
+- **🔐 Authentication & Authorization**: JWT, API keys, RBAC, and session management
 - **🎨 Request/Response Modeling**: Pydantic-based state management
 - **⚡ CLI Tool**: Artisan-style commands for scaffolding and management
 - **🌊 Streaming Support**: Built-in streaming for real-time responses
-- **💾 Checkpointers**: Memory, PostgreSQL, and Redis state persistence
+- **💾 Checkpointers**: Production-ready PostgreSQL and Redis persistence
+- **📊 Observability**: LangSmith and Langfuse integration for tracing
+- **🤝 Multi-Agent**: Agent coordination, message bus, and supervisor patterns
 
 ## 🚀 Quick Start
 
@@ -335,9 +337,22 @@ LLM_TEMPERATURE = 0.7
 
 ### 9. Authentication & Authorization
 
-Built-in auth decorators and state management.
+Complete auth system with JWT, API keys, and RBAC.
 
 ```python
+from langvel.auth.manager import get_auth_manager
+from langvel.auth.decorators import requires_auth, requires_permission, rate_limit
+
+# Create and verify JWT tokens
+auth = get_auth_manager()
+token = auth.create_token(user_id="user123", permissions=["read", "write"])
+verified = auth.verify_token(token)
+
+# API key management
+api_key = auth.create_api_key(name="Production API", permissions=["api.*"])
+key_data = auth.verify_api_key(api_key)
+
+# Use decorators in agents
 @requires_auth
 async def sensitive_operation(self, state):
     # Only authenticated users
@@ -352,6 +367,51 @@ async def admin_operation(self, state):
 async def expensive_operation(self, state):
     # Rate limited to 5 requests per minute
     pass
+```
+
+### 10. Observability & Tracing
+
+Automatic tracing with LangSmith and Langfuse.
+
+```python
+# Configure in .env
+LANGSMITH_API_KEY=your_key
+LANGFUSE_PUBLIC_KEY=your_public_key
+LANGFUSE_SECRET_KEY=your_secret_key
+
+# Tracing is automatic for all agents!
+# Every agent invocation is traced with:
+# - Input/output data
+# - LLM calls with token usage
+# - Tool executions
+# - Error tracking
+# - Performance metrics
+```
+
+### 11. Multi-Agent Systems
+
+Coordinate multiple agents working together.
+
+```python
+from langvel.multiagent import SupervisorAgent, AgentCoordinator
+
+# Define worker agents
+class ResearchAgent(Agent):
+    def build_graph(self):
+        return self.start().then(self.research).end()
+
+class AnalysisAgent(Agent):
+    def build_graph(self):
+        return self.start().then(self.analyze).end()
+
+# Create supervisor that coordinates workers
+class TaskSupervisor(SupervisorAgent):
+    def __init__(self):
+        super().__init__(workers=[ResearchAgent, AnalysisAgent])
+
+# Execute with automatic coordination
+supervisor = TaskSupervisor()
+result = await supervisor.invoke({"task": "Complex research task"})
 ```
 
 ## 🛠️ CLI Commands
