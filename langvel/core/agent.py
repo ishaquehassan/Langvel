@@ -45,9 +45,23 @@ class Agent(ABC):
         self._graph = None
         self._compiled_graph = None
 
+        # Initialize LLM
+        self._init_llm()
+
         # Register tools and middleware
         self._register_tools()
         self._register_middleware()
+
+    def _init_llm(self):
+        """Initialize LLM client."""
+        from langvel.llm.manager import LLMManager
+        from config.langvel import config
+
+        self.llm = LLMManager(
+            provider=config.LLM_PROVIDER,
+            model=config.LLM_MODEL,
+            temperature=config.LLM_TEMPERATURE
+        )
 
     def _register_tools(self):
         """Register all tools defined in this agent."""
