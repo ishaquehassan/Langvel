@@ -19,23 +19,44 @@ Langvel brings the beloved Laravel development experience to AI agent developmen
 
 ## 🚀 Quick Start
 
-### Installation
+### One-Command Setup (Recommended)
+
+The fastest way to get started:
 
 ```bash
-# Clone the repository
+# Clone and navigate
 git clone https://github.com/yourusername/langvel.git
 cd langvel
 
-# Install dependencies
-pip install -e .
+# Run automated setup (creates venv, installs dependencies, initializes project)
+python setup.py
 
-# Initialize a new project
-langvel init
+# Activate virtual environment
+source venv/bin/activate  # macOS/Linux
+# or
+venv\Scripts\activate     # Windows
 
-# Configure your environment
-cp .env.example .env
-# Edit .env with your API keys
+# Configure your API keys
+nano .env  # Add your ANTHROPIC_API_KEY and OPENAI_API_KEY
 ```
+
+### Alternative Installation Methods
+
+**Using CLI Setup Command:**
+```bash
+pip install -e .
+langvel setup --with-venv  # Beautiful progress interface!
+```
+
+**Manual Installation:**
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -e .
+langvel init
+```
+
+📚 For detailed installation instructions, see [INSTALL.md](./INSTALL.md)
 
 ### Create Your First Agent
 
@@ -284,6 +305,14 @@ async def expensive_operation(self, state):
 ```
 
 ## 🛠️ CLI Commands
+
+### Setup & Installation
+
+```bash
+langvel setup                   # Initialize project structure
+langvel setup --with-venv       # Setup with virtual environment and dependencies
+python setup.py                 # Alternative automated setup script
+```
 
 ### Project Management
 

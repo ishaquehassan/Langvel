@@ -358,8 +358,235 @@ def visualize_graph(agent_path: str, output: str):
 
 
 @cli.command()
+@click.option('--with-venv', is_flag=True, help='Also setup virtual environment and install dependencies')
+def setup(with_venv: bool):
+    """
+    Complete setup of Langvel framework.
+
+    Creates virtual environment, installs dependencies, and initializes project.
+    """
+    import subprocess
+    import sys
+    import os
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    console.print("[bold green]🚀 Langvel Framework Setup[/bold green]\n")
+
+    if with_venv:
+        # Step 1: Create virtual environment
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task1 = progress.add_task("[cyan]Creating virtual environment...", total=None)
+
+            venv_path = Path.cwd() / "venv"
+
+            if venv_path.exists():
+                console.print("[yellow]⚠[/yellow]  Virtual environment already exists")
+            else:
+                try:
+                    subprocess.run([sys.executable, "-m", "venv", "venv"], check=True)
+                    console.print("[green]✓[/green] Virtual environment created")
+                except subprocess.CalledProcessError as e:
+                    console.print(f"[red]✗[/red] Failed to create virtual environment: {e}")
+                    return
+
+            progress.remove_task(task1)
+
+        # Step 2: Determine activation script
+        if sys.platform == "win32":
+            activate_script = venv_path / "Scripts" / "activate.bat"
+            pip_executable = venv_path / "Scripts" / "pip"
+            python_executable = venv_path / "Scripts" / "python"
+        else:
+            activate_script = venv_path / "bin" / "activate"
+            pip_executable = venv_path / "bin" / "pip"
+            python_executable = venv_path / "bin" / "python"
+
+        # Step 3: Upgrade pip
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task2 = progress.add_task("[cyan]Upgrading pip...", total=None)
+
+            try:
+                subprocess.run(
+                    [str(python_executable), "-m", "pip", "install", "--upgrade", "pip"],
+                    check=True,
+                    capture_output=True
+                )
+                console.print("[green]✓[/green] Pip upgraded")
+            except subprocess.CalledProcessError as e:
+                console.print(f"[yellow]⚠[/yellow]  Pip upgrade warning (continuing anyway)")
+
+            progress.remove_task(task2)
+
+        # Step 4: Install dependencies
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task3 = progress.add_task("[cyan]Installing Langvel and dependencies...", total=None)
+
+            try:
+                # Install in editable mode
+                subprocess.run(
+                    [str(pip_executable), "install", "-e", "."],
+                    check=True,
+                    capture_output=True
+                )
+                console.print("[green]✓[/green] Dependencies installed")
+            except subprocess.CalledProcessError as e:
+                console.print(f"[red]✗[/red] Failed to install dependencies: {e}")
+                return
+
+            progress.remove_task(task3)
+
+    # Step 5: Initialize project structure
+    console.print("\n[cyan]Initializing project structure...[/cyan]")
+
+    # Create directory structure
+    dirs = [
+        'app/agents',
+        'app/middleware',
+        'app/tools',
+        'app/models',
+        'config',
+        'routes',
+        'storage/logs',
+        'storage/checkpoints',
+        'tests'
+    ]
+
+    for dir_path in dirs:
+        Path(dir_path).mkdir(parents=True, exist_ok=True)
+
+    # Create config file
+    config_content = '''"""
+Langvel Configuration
+"""
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# LLM Configuration
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'anthropic')
+LLM_MODEL = os.getenv('LLM_MODEL', 'claude-3-5-sonnet-20241022')
+LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.7'))
+
+# RAG Configuration
+RAG_PROVIDER = os.getenv('RAG_PROVIDER', 'chroma')
+RAG_EMBEDDING_MODEL = os.getenv('RAG_EMBEDDING_MODEL', 'openai/text-embedding-3-small')
+
+# MCP Servers
+MCP_SERVERS = {
+    # Example: 'slack': {
+    #     'command': 'npx',
+    #     'args': ['-y', '@modelcontextprotocol/server-slack'],
+    #     'env': {'SLACK_BOT_TOKEN': os.getenv('SLACK_BOT_TOKEN')}
+    # }
+}
+
+# State Configuration
+STATE_CHECKPOINTER = os.getenv('STATE_CHECKPOINTER', 'memory')  # memory, postgres, redis
+
+# Database (for postgres checkpointer)
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://localhost/langvel')
+
+# Redis (for redis checkpointer)
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
+'''
+
+    if not Path('config/langvel.py').exists():
+        Path('config/langvel.py').write_text(config_content)
+        console.print("[green]✓[/green] Config file created")
+    else:
+        console.print("[yellow]⚠[/yellow]  Config file already exists")
+
+    # Create routes file
+    routes_content = '''"""
+Agent Routes
+
+Register your agents here.
+"""
+
+from langvel.routing.router import AgentRouter
+
+router = AgentRouter()
+
+# Example:
+# @router.flow('/example', middleware=['logging'])
+# class ExampleAgent(Agent):
+#     def build_graph(self):
+#         return self.start().then(self.handle).end()
+'''
+
+    if not Path('routes/agent.py').exists():
+        Path('routes/agent.py').write_text(routes_content)
+        console.print("[green]✓[/green] Routes file created")
+    else:
+        console.print("[yellow]⚠[/yellow]  Routes file already exists")
+
+    # Create .env file
+    env_content = '''# Langvel Environment Variables
+
+# LLM Configuration
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_API_KEY=your_api_key_here
+
+# OpenAI (for embeddings)
+OPENAI_API_KEY=your_openai_key_here
+
+# State Management
+STATE_CHECKPOINTER=memory
+
+# Database (if using postgres)
+# DATABASE_URL=postgresql://localhost/langvel
+
+# Redis (if using redis)
+# REDIS_URL=redis://localhost:6379
+'''
+
+    if not Path('.env').exists():
+        Path('.env').write_text(env_content)
+        console.print("[green]✓[/green] Environment file created")
+    else:
+        console.print("[yellow]⚠[/yellow]  Environment file already exists")
+
+    # Create __init__.py files
+    for dir_path in ['app', 'app/agents', 'app/middleware', 'app/tools', 'app/models']:
+        init_file = Path(dir_path) / '__init__.py'
+        if not init_file.exists():
+            init_file.touch()
+
+    console.print("\n[bold green]✨ Setup complete![/bold green]\n")
+
+    if with_venv:
+        console.print("[yellow]To activate the virtual environment:[/yellow]")
+        if sys.platform == "win32":
+            console.print("  [cyan]venv\\Scripts\\activate[/cyan]")
+        else:
+            console.print("  [cyan]source venv/bin/activate[/cyan]")
+        console.print()
+
+    console.print("[yellow]Next steps:[/yellow]")
+    console.print("  1. Update .env with your API keys")
+    console.print("  2. Create your first agent: [cyan]langvel make:agent MyAgent[/cyan]")
+    console.print("  3. Register it in routes/agent.py")
+    console.print("  4. Start the server: [cyan]langvel agent serve[/cyan]")
+
+
+@cli.command()
 def init():
-    """Initialize a new Langvel project."""
+    """Initialize a new Langvel project (without venv setup)."""
     console.print("[green]Initializing Langvel project...[/green]")
 
     # Create directory structure
