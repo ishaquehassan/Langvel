@@ -386,19 +386,24 @@ async def expensive_operation(self, state):
 
 Automatic tracing with LangSmith and Langfuse, plus production-ready structured logging.
 
+**📊 [LangSmith Setup Guide](./LANGSMITH_SETUP.md)** - Complete guide for setting up LangSmith tracing with traces, LLM calls, token usage, and costs.
+
 ```python
 # Configure in .env
 LANGSMITH_API_KEY=your_key
-LANGFUSE_PUBLIC_KEY=your_public_key
-LANGFUSE_SECRET_KEY=your_secret_key
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=my-project
 
 # Tracing is automatic for all agents!
 # Every agent invocation is traced with:
 # - Input/output data
-# - LLM calls with token usage
-# - Tool executions
+# - LLM calls with token usage and costs
+# - Tool executions with timing
 # - Error tracking
 # - Performance metrics
+# - Full execution tree visualization
+
+# View traces at: https://smith.langchain.com
 
 # Structured JSON logging (production-ready)
 from langvel.logging import get_logger, setup_logging
@@ -407,6 +412,14 @@ setup_logging(log_level="INFO", log_file="langvel.log", json_format=True)
 logger = get_logger(__name__)
 logger.info("Agent started", extra={"agent": "CustomerSupport", "user_id": "123"})
 ```
+
+**What You'll See in LangSmith:**
+- Overall execution time and status
+- Detailed span for each workflow node
+- LLM calls with prompts, responses, token usage, and costs
+- Tool executions with input/output
+- Graph visualization showing execution flow
+- Error tracking with stack traces
 
 **JSON Log Output** (compatible with ELK, Datadog, CloudWatch):
 ```json
@@ -848,10 +861,41 @@ langvel make:tool MyTool               # Create tool
 ### Agent Management
 
 ```bash
-langvel agent list                      # List all agents
+langvel agent list                                  # List all agents
 langvel agent test /my-agent -i '{"query":"test"}'  # Test agent
 langvel agent graph /my-agent -o graph.png          # Visualize graph
+langvel agent studio /my-agent                      # Launch LangGraph Studio
+langvel agent studio /my-agent --port 8200          # Studio on custom port
 ```
+
+### 🎨 LangGraph Studio (Visual Debugging)
+
+Launch a visual interface to debug and test your agents interactively:
+
+```bash
+# Launch Studio for any agent
+langvel agent studio /customer-support
+
+# Studio will:
+# ✓ Check for API keys (prompts if missing)
+# ✓ Auto-generate Studio-compatible graph
+# ✓ Auto-install dependencies if needed
+# ✓ Open visual interface in browser
+# ✓ Clean up temp files on exit
+```
+
+**What You Can Do in Studio:**
+- 📊 Visualize your agent's workflow graph
+- ▶️ Execute agents step-by-step with live state inspection
+- 🔄 Test with different inputs interactively
+- 🐛 Debug node execution with detailed logs
+- ⏸️ Pause at breakpoints (interrupt points)
+- 📝 View full execution history
+- 🔍 Inspect state changes at each step
+
+**Studio automatically opens at:** `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:8123`
+
+No manual configuration needed - everything is automated!
 
 ## 📖 Example Agents
 
@@ -953,6 +997,7 @@ GET /agents/my-agent/graph
 - **[INSTALL.md](./INSTALL.md)** - Complete installation guide with troubleshooting
 - **[QUICKSTART.md](./QUICKSTART.md)** - 5-minute tutorial to get started fast
 - **[FEATURES.md](./FEATURES.md)** - Complete feature list with examples
+- **[LANGSMITH_SETUP.md](./LANGSMITH_SETUP.md)** - LangSmith tracing setup with detailed examples
 - **[docs/LLM_GUIDE.md](./docs/LLM_GUIDE.md)** - Comprehensive LLM integration guide
 - **[LARAVEL_COMPARISON.md](./LARAVEL_COMPARISON.md)** - Laravel patterns mapped to Langvel
 
@@ -1097,6 +1142,8 @@ MIT License - see LICENSE file for details.
 ## 🔗 Links
 
 - **[📚 Documentation](https://ishaquehassan.github.io/langvel-docs/)** - Complete documentation with guides and tutorials
+- **[📊 LangSmith](https://smith.langchain.com)** - Official LangSmith platform for tracing and observability
+- [LangSmith Setup Guide](./LANGSMITH_SETUP.md) - Step-by-step LangSmith integration guide
 - [Example Agents](./app/agents) - Working production-ready examples
 - [GitHub](https://github.com/ishaquehassan/langvel) - Source code and issues
 - [Discord](https://discord.gg/langvel) - Community support

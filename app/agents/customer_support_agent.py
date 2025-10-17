@@ -16,7 +16,7 @@ from langvel.core.agent import Agent
 from langvel.state.base import RAGState, AuthenticatedState
 from langvel.tools.decorators import tool, mcp_tool, rag_tool, llm_tool
 from langvel.auth.decorators import requires_auth, rate_limit
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 
 
 class CustomerSupportState(RAGState, AuthenticatedState):
@@ -26,6 +26,7 @@ class CustomerSupportState(RAGState, AuthenticatedState):
     category: Optional[str] = None  # 'technical', 'billing', 'general'
     sentiment: Optional[float] = None
     resolution: Optional[str] = None
+    response: Optional[str] = None  # Agent's response to customer
 
     class Config:
         checkpointer = "memory"
@@ -50,7 +51,7 @@ class CustomerSupportAgent(Agent):
 
     def __init__(self):
         super().__init__()
-        self.llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0.7)
+        self.llm = ChatOpenAI(model="claude-3-5-sonnet-20241022", temperature=0.7)
 
     def build_graph(self):
         """Define the customer support workflow."""

@@ -66,3 +66,4 @@ graph_*
 
 # Logs
 *.log
+/.langgraph_api/
