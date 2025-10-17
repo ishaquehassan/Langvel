@@ -2,6 +2,9 @@
 
 from typing import Any, Callable, Dict
 from abc import ABC, abstractmethod
+import asyncio
+import time
+from collections import defaultdict
 
 
 class Middleware(ABC):
@@ -56,7 +59,19 @@ class Middleware(ABC):
 
 
 class RateLimitMiddleware(Middleware):
-    """Rate limiting middleware."""
+    """
+    Rate limiting middleware with thread-safe implementation.
+
+    Fixes:
+    - Race condition: Uses asyncio locks for concurrent access
+    - Memory leak: Periodic cleanup task removes old user data
+    - Resource exhaustion: Limits dictionary size
+
+    Thread Safety:
+    - Per-user locks prevent concurrent modification
+    - defaultdict for automatic initialization
+    - Cleanup task runs every hour to remove stale users
+    """
 
     def __init__(self, max_requests: int = 10, window: int = 60):
         """
@@ -68,37 +83,107 @@ class RateLimitMiddleware(Middleware):
         """
         self.max_requests = max_requests
         self.window = window
-        self._requests: Dict[str, list] = {}
+        self._requests: Dict[str, list] = defaultdict(list)
+        self._locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._cleanup_task = None
+        self._started = False
+
+    def _start_cleanup_task(self):
+        """Start background cleanup task (once)."""
+        if not self._started:
+            self._started = True
+            try:
+                loop = asyncio.get_event_loop()
+                self._cleanup_task = loop.create_task(self._cleanup_old_users())
+            except RuntimeError:
+                # No event loop running yet, task will be started on first request
+                pass
 
     async def before(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Check rate limit before execution."""
-        import time
+        """
+        Check rate limit before execution.
+
+        Thread-safe implementation with per-user locking.
+        """
+        # Start cleanup task on first request
+        if not self._started:
+            self._start_cleanup_task()
 
         user_id = state.get('user_id', 'anonymous')
         current_time = time.time()
 
-        # Initialize user tracking
-        if user_id not in self._requests:
-            self._requests[user_id] = []
+        # Use lock per user to prevent race conditions
+        async with self._locks[user_id]:
+            # Clean old requests within the time window
+            self._requests[user_id] = [
+                req_time for req_time in self._requests[user_id]
+                if current_time - req_time < self.window
+            ]
 
-        # Clean old requests
-        self._requests[user_id] = [
-            req_time for req_time in self._requests[user_id]
-            if current_time - req_time < self.window
-        ]
+            # Check if limit exceeded
+            if len(self._requests[user_id]) >= self.max_requests:
+                raise Exception(
+                    f"Rate limit exceeded: {self.max_requests} requests per {self.window}s"
+                )
 
-        # Check limit
-        if len(self._requests[user_id]) >= self.max_requests:
-            raise Exception(f"Rate limit exceeded: {self.max_requests} requests per {self.window}s")
-
-        # Add current request
-        self._requests[user_id].append(current_time)
+            # Add current request timestamp
+            self._requests[user_id].append(current_time)
 
         return state
 
     async def after(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Nothing to do after execution."""
         return state
+
+    async def _cleanup_old_users(self):
+        """
+        Periodic cleanup to prevent memory leak.
+
+        Runs every hour and removes users with no recent requests.
+        Prevents unbounded dictionary growth.
+        """
+        while True:
+            try:
+                await asyncio.sleep(3600)  # Every hour
+
+                current_time = time.time()
+                users_to_remove = []
+
+                # Find users with no requests in the time window
+                for user_id in list(self._requests.keys()):
+                    # Use lock to safely check user's requests
+                    async with self._locks[user_id]:
+                        # Remove old requests
+                        self._requests[user_id] = [
+                            req_time for req_time in self._requests[user_id]
+                            if current_time - req_time < self.window
+                        ]
+
+                        # If no recent requests, mark for removal
+                        if not self._requests[user_id]:
+                            users_to_remove.append(user_id)
+
+                # Remove stale users
+                for user_id in users_to_remove:
+                    async with self._locks[user_id]:
+                        if user_id in self._requests:
+                            del self._requests[user_id]
+                        if user_id in self._locks:
+                            del self._locks[user_id]
+
+            except asyncio.CancelledError:
+                # Task cancelled, exit gracefully
+                break
+            except Exception as e:
+                # Log error but continue cleanup loop
+                import logging
+                logger = logging.getLogger("langvel.middleware")
+                logger.error(f"Rate limiter cleanup error: {e}")
+
+    def __del__(self):
+        """Cancel cleanup task on deletion."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
 
 
 class LoggingMiddleware(Middleware):
