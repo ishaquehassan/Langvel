@@ -18,6 +18,7 @@ Langvel brings the beloved Laravel development experience to AI agent developmen
 - **🌊 Streaming Support**: Built-in streaming for real-time responses
 - **💾 Checkpointers**: Production-ready PostgreSQL and Redis persistence
 - **📊 Observability**: LangSmith and Langfuse integration for tracing
+- **📝 Structured Logging**: JSON logging with full context for ELK, Datadog, CloudWatch
 - **🤝 Multi-Agent**: Agent coordination, message bus, and supervisor patterns
 
 ## 🚀 Quick Start
@@ -371,7 +372,7 @@ async def expensive_operation(self, state):
 
 ### 10. Observability & Tracing
 
-Automatic tracing with LangSmith and Langfuse.
+Automatic tracing with LangSmith and Langfuse, plus production-ready structured logging.
 
 ```python
 # Configure in .env
@@ -386,6 +387,25 @@ LANGFUSE_SECRET_KEY=your_secret_key
 # - Tool executions
 # - Error tracking
 # - Performance metrics
+
+# Structured JSON logging (production-ready)
+from langvel.logging import get_logger, setup_logging
+
+setup_logging(log_level="INFO", log_file="langvel.log", json_format=True)
+logger = get_logger(__name__)
+logger.info("Agent started", extra={"agent": "CustomerSupport", "user_id": "123"})
+```
+
+**JSON Log Output** (compatible with ELK, Datadog, CloudWatch):
+```json
+{
+  "timestamp": "2025-10-17T11:13:25.502449Z",
+  "level": "INFO",
+  "logger": "langvel.middleware.logging",
+  "message": "Agent execution started",
+  "event": "agent_input",
+  "state_keys": ["query", "user_id"]
+}
 ```
 
 ### 11. Multi-Agent Systems

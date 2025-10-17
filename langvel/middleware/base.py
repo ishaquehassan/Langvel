@@ -187,18 +187,35 @@ class RateLimitMiddleware(Middleware):
 
 
 class LoggingMiddleware(Middleware):
-    """Logging middleware."""
+    """Logging middleware with structured logging."""
+
+    def __init__(self):
+        """Initialize logging middleware."""
+        from langvel.logging import get_logger
+        self.logger = get_logger('langvel.middleware.logging')
 
     async def before(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Log before execution."""
-        import json
-        print(f"[Langvel] Input State: {json.dumps(state, indent=2, default=str)}")
+        self.logger.info(
+            "Agent execution started",
+            extra={
+                'event': 'agent_input',
+                'state': state,
+                'state_keys': list(state.keys())
+            }
+        )
         return state
 
     async def after(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Log after execution."""
-        import json
-        print(f"[Langvel] Output State: {json.dumps(state, indent=2, default=str)}")
+        self.logger.info(
+            "Agent execution completed",
+            extra={
+                'event': 'agent_output',
+                'state': state,
+                'state_keys': list(state.keys())
+            }
+        )
         return state
 
 

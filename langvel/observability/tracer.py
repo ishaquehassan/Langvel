@@ -6,6 +6,7 @@ import os
 import uuid
 from datetime import datetime
 import asyncio
+from langvel.logging import get_logger
 
 
 class ObservabilityManager:
@@ -21,6 +22,7 @@ class ObservabilityManager:
         self._langsmith_client = None
         self._langfuse_client = None
         self._current_trace = None
+        self.logger = get_logger('langvel.observability')
 
         # Initialize integrations
         self._init_langsmith()
@@ -39,12 +41,18 @@ class ObservabilityManager:
                     api_url=os.getenv('LANGSMITH_ENDPOINT', 'https://api.smith.langchain.com')
                 )
                 self.langsmith_enabled = True
-                print("[Langvel] LangSmith tracing enabled")
+                self.logger.info("LangSmith tracing enabled", extra={'service': 'langsmith'})
 
             except ImportError:
-                print("[Langvel] Warning: langsmith not installed. Run: pip install langsmith")
+                self.logger.warning(
+                    "LangSmith not installed",
+                    extra={'service': 'langsmith', 'fix': 'pip install langsmith'}
+                )
             except Exception as e:
-                print(f"[Langvel] Warning: Could not initialize LangSmith: {e}")
+                self.logger.warning(
+                    "Could not initialize LangSmith",
+                    extra={'service': 'langsmith', 'error': str(e)}
+                )
 
     def _init_langfuse(self):
         """Initialize Langfuse integration."""
@@ -61,12 +69,18 @@ class ObservabilityManager:
                     host=os.getenv('LANGFUSE_HOST', 'https://cloud.langfuse.com')
                 )
                 self.langfuse_enabled = True
-                print("[Langvel] Langfuse tracing enabled")
+                self.logger.info("Langfuse tracing enabled", extra={'service': 'langfuse'})
 
             except ImportError:
-                print("[Langvel] Warning: langfuse not installed. Run: pip install langfuse")
+                self.logger.warning(
+                    "Langfuse not installed",
+                    extra={'service': 'langfuse', 'fix': 'pip install langfuse'}
+                )
             except Exception as e:
-                print(f"[Langvel] Warning: Could not initialize Langfuse: {e}")
+                self.logger.warning(
+                    "Could not initialize Langfuse",
+                    extra={'service': 'langfuse', 'error': str(e)}
+                )
 
     def start_trace(
         self,
@@ -107,7 +121,10 @@ class ObservabilityManager:
                     extra=metadata or {}
                 )
             except Exception as e:
-                print(f"[Langvel] LangSmith trace start failed: {e}")
+                self.logger.error(
+                    "LangSmith trace start failed",
+                    extra={'service': 'langsmith', 'trace_id': trace_id, 'error': str(e)}
+                )
 
         # Start Langfuse trace
         if self.langfuse_enabled and self._langfuse_client:
@@ -119,7 +136,10 @@ class ObservabilityManager:
                     metadata=metadata or {}
                 )
             except Exception as e:
-                print(f"[Langvel] Langfuse trace start failed: {e}")
+                self.logger.error(
+                    "Langfuse trace start failed",
+                    extra={'service': 'langfuse', 'trace_id': trace_id, 'error': str(e)}
+                )
 
         return trace_id
 
@@ -158,7 +178,10 @@ class ObservabilityManager:
                     end_time=datetime.utcnow()
                 )
             except Exception as e:
-                print(f"[Langvel] LangSmith trace end failed: {e}")
+                self.logger.error(
+                    "LangSmith trace end failed",
+                    extra={'service': 'langsmith', 'trace_id': trace_id, 'error': str(e)}
+                )
 
         # End Langfuse trace
         if self.langfuse_enabled and self._langfuse_client:
@@ -172,7 +195,10 @@ class ObservabilityManager:
                     }
                 )
             except Exception as e:
-                print(f"[Langvel] Langfuse trace end failed: {e}")
+                self.logger.error(
+                    "Langfuse trace end failed",
+                    extra={'service': 'langfuse', 'trace_id': trace_id, 'error': str(e)}
+                )
 
         self._current_trace = None
 
@@ -229,7 +255,10 @@ class ObservabilityManager:
                     extra=metadata or {}
                 )
             except Exception as e:
-                print(f"[Langvel] LangSmith span failed: {e}")
+                self.logger.error(
+                    "LangSmith span failed",
+                    extra={'service': 'langsmith', 'span_id': span_id, 'error': str(e)}
+                )
 
         # Add to Langfuse
         if self.langfuse_enabled and self._langfuse_client:
@@ -247,7 +276,10 @@ class ObservabilityManager:
                     }
                 )
             except Exception as e:
-                print(f"[Langvel] Langfuse span failed: {e}")
+                self.logger.error(
+                    "Langfuse span failed",
+                    extra={'service': 'langfuse', 'span_id': span_id, 'error': str(e)}
+                )
 
     def log_llm_call(
         self,
@@ -326,7 +358,10 @@ class ObservabilityManager:
             try:
                 self._langfuse_client.flush()
             except Exception as e:
-                print(f"[Langvel] Langfuse flush failed: {e}")
+                self.logger.error(
+                    "Langfuse flush failed",
+                    extra={'service': 'langfuse', 'error': str(e)}
+                )
 
 
 # Global observability manager instance

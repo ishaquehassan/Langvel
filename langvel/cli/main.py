@@ -310,7 +310,13 @@ def test_agent(agent_path: str, input_data: str):
         # Run agent
         async def run():
             agent = agent_class()
-            result = await agent.invoke(input_dict)
+            # Add config with thread_id for checkpointer
+            config = {
+                "configurable": {
+                    "thread_id": "test-thread-123"
+                }
+            }
+            result = await agent.invoke(input_dict, config)
             return result
 
         result = asyncio.run(run())

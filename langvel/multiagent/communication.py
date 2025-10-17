@@ -6,6 +6,7 @@ from datetime import datetime
 from enum import Enum
 import asyncio
 from collections import defaultdict
+from langvel.logging import get_logger
 
 
 class MessagePriority(Enum):
@@ -59,6 +60,7 @@ class MessageBus:
         self._running = False
         self._message_history: List[AgentMessage] = []
         self._max_history = 1000
+        self.logger = get_logger('langvel.multiagent.bus')
 
     async def start(self):
         """Start the message bus processing loop."""
@@ -82,7 +84,11 @@ class MessageBus:
             except asyncio.TimeoutError:
                 continue
             except Exception as e:
-                print(f"[MessageBus] Error processing message: {e}")
+                self.logger.error(
+                    "Error processing message",
+                    extra={'error': str(e)},
+                    exc_info=True
+                )
 
     async def _deliver_message(self, message: AgentMessage):
         """Deliver a message to its recipient."""
@@ -97,7 +103,16 @@ class MessageBus:
             try:
                 await handler(message)
             except Exception as e:
-                print(f"[MessageBus] Error delivering to {message.recipient_id}: {e}")
+                self.logger.error(
+                    "Error delivering message",
+                    extra={
+                        'recipient_id': message.recipient_id,
+                        'sender_id': message.sender_id,
+                        'message_type': message.message_type,
+                        'error': str(e)
+                    },
+                    exc_info=True
+                )
 
         # Topic-based delivery
         topic = f"{message.message_type}:{message.recipient_id}"
@@ -105,7 +120,15 @@ class MessageBus:
             try:
                 await subscriber(message)
             except Exception as e:
-                print(f"[MessageBus] Error in subscriber: {e}")
+                self.logger.error(
+                    "Error in subscriber",
+                    extra={
+                        'topic': topic,
+                        'sender_id': message.sender_id,
+                        'error': str(e)
+                    },
+                    exc_info=True
+                )
 
     async def send(
         self,
@@ -194,7 +217,15 @@ class MessageBus:
             try:
                 await subscriber(message)
             except Exception as e:
-                print(f"[MessageBus] Error in subscriber: {e}")
+                self.logger.error(
+                    "Error in topic subscriber",
+                    extra={
+                        'topic': topic,
+                        'sender_id': sender_id,
+                        'error': str(e)
+                    },
+                    exc_info=True
+                )
 
     def subscribe(
         self,
