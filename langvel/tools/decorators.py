@@ -8,7 +8,10 @@ from langchain_core.tools import tool as langchain_tool
 def tool(
     name: Optional[str] = None,
     description: Optional[str] = None,
-    return_direct: bool = False
+    return_direct: bool = False,
+    retry: int = 3,
+    timeout: Optional[float] = None,
+    fallback: Optional[Callable] = None
 ) -> Callable:
     """
     Decorator to mark a method as a custom tool.
@@ -17,9 +20,12 @@ def tool(
         name: Tool name (defaults to function name)
         description: Tool description
         return_direct: Whether to return the tool output directly
+        retry: Number of retry attempts on failure (default: 3)
+        timeout: Timeout in seconds for tool execution
+        fallback: Fallback function if tool fails
 
     Example:
-        @tool(description="Analyzes sentiment of text")
+        @tool(description="Analyzes sentiment of text", retry=5, timeout=30)
         async def analyze_sentiment(self, text: str) -> float:
             # Your logic here
             return sentiment_score
@@ -35,6 +41,9 @@ def tool(
         wrapper._tool_name = name or func.__name__
         wrapper._tool_description = description or func.__doc__ or ""
         wrapper._return_direct = return_direct
+        wrapper._tool_retry = retry
+        wrapper._tool_timeout = timeout
+        wrapper._tool_fallback = fallback
 
         return wrapper
 

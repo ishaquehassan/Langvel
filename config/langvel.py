@@ -72,6 +72,15 @@ class Config:
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE: str = os.getenv('LOG_FILE', './storage/logs/langvel.log')
 
+    # Observability
+    LANGSMITH_API_KEY: str = os.getenv('LANGSMITH_API_KEY', '')
+    LANGSMITH_PROJECT: str = os.getenv('LANGSMITH_PROJECT', 'langvel')
+    LANGSMITH_ENDPOINT: str = os.getenv('LANGSMITH_ENDPOINT', 'https://api.smith.langchain.com')
+
+    LANGFUSE_PUBLIC_KEY: str = os.getenv('LANGFUSE_PUBLIC_KEY', '')
+    LANGFUSE_SECRET_KEY: str = os.getenv('LANGFUSE_SECRET_KEY', '')
+    LANGFUSE_HOST: str = os.getenv('LANGFUSE_HOST', 'https://cloud.langfuse.com')
+
     # Development
     DEBUG: bool = os.getenv('DEBUG', 'False').lower() == 'true'
     RELOAD: bool = os.getenv('RELOAD', 'False').lower() == 'true'
